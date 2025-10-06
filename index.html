@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HUMS OTP</title>
+</head>
+<body>
+<h3>HUMS — Phone verification</h3>
+<div id="recaptcha-container"></div>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+
+<script>
+// --- REPLACE below with YOUR firebaseConfig object from Firebase console ---
+const firebaseConfig = {
+apiKey: "REPLACE_API_KEY",
+authDomain: "REPLACE_AUTH_DOMAIN",
+projectId: "REPLACE_PROJECT_ID",
+databaseURL: "REPLACE_DATABASE_URL",
+storageBucket: "REPLACE_STORAGE_BUCKET",
+messagingSenderId: "REPLACE_MSG_SENDER_ID",
+appId: "REPLACE_APP_ID"
+};
+// ---------------------------------------------------------------------
+
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+
+// read phone from query string
+function qs(name){
+name = name.replace(/[\[\]]/g, '\\$&');
+const url = window.location.href;
+const results = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)').exec(url);
+if (!results) return null;
+if (!results[2]) return '';
+return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}
+
+
+const phone = qs('phone');
+if (!phone) {
+document.body.innerHTML += '<p style="color:crimson">No phone provided in ?phone=</p>';
+} else {
+// Render invisible reCAPTCHA
+window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
+recaptchaVerifier.render().then(function(widgetId) {
+// call signInWithPhoneNumber
+auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+.then(function (confirmationResult) {
+// Ask user for the SMS code via prompt (simple)
+const code = prompt('Enter the OTP sent to ' + phone);
+if (!code) { window.location.href = window.location.href + '?verified=0'; }
+confirmationResult.confirm(code).then(function (result) {
+// success -> redirect back to app with verified=1
+window.location.href = window.location.origin + window.location.pathname + '?verified=1&phone=' + encodeURIComponent(phone);
+}).catch(function(error){
+window.location.href = window.location.origin + window.location.pathname + '?verified=0&err=' + encodeURIComponent(error.message);
+});
+}).catch(function(error){
+window.location.href = window.location.origin + window.location.pathname + '?verified=0&err=' + encodeURIComponent(error.message);
+});
+});
+}
+</script>
+</body>
+</html>
